@@ -178,6 +178,7 @@ public class StringConsumer implements Callable<Long> {
 
             logger.info("Poll returned {} records", records.count());
             if (!records.isEmpty()) {
+                // Thread.sleep(30000); // Add delay between subsequent calls to poll(), so that Kafka rebalances the consumer group.
                 process(records);
             }
 
