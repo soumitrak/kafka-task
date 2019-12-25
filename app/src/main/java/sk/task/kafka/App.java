@@ -2,6 +2,8 @@ package sk.task.kafka;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.inject.Guice;
+import com.google.inject.Injector;
 import net.sourceforge.argparse4j.ArgumentParsers;
 import net.sourceforge.argparse4j.inf.ArgumentParser;
 import net.sourceforge.argparse4j.inf.ArgumentParserException;
@@ -34,7 +36,7 @@ public class App {
         parser.addArgument("--" + ConsumerConfig.GROUP_ID_CONFIG)
                 .help("Kafka consumer group id")
                 .setDefault("task1");
-                //.setDefault("task" + "_" + System.nanoTime());
+        //.setDefault("task" + "_" + System.nanoTime());
 
         parser.addArgument("--" + ConsumerConfig.MAX_POLL_RECORDS_CONFIG)
                 .help("The maximum number of records returned in a single call to poll")
@@ -93,14 +95,20 @@ public class App {
     }
 
     private static void runDaemon(final Namespace ns) throws InterruptedException {
+        final TaskExecutorService tes = new TaskExecutorServiceImpl(new TaskLocatorService(), ns.getInt("nt"));
+        final StringConsumer consumer = new StringConsumer(tes, ns);
+        run(ns, consumer, tes);
+    }
+
+    private static void run(final Namespace ns,
+                            final StringConsumer consumer,
+                            final TaskExecutorService tes) throws InterruptedException {
         final long sleepFor = 300000;
 
         logger.info("Starting Kafka task consumer - topic {} group id {}",
                 ns.getString("topic"),
                 ns.getString(ConsumerConfig.GROUP_ID_CONFIG));
 
-        final TaskExecutorService tes = new TaskExecutorServiceImpl(new TaskLocatorService(), ns.getInt("nt"));
-        final StringConsumer consumer = new StringConsumer(tes, ns);
         final Future<Long> cf = submit(consumer);
 
         Thread st = new Thread(() -> shutdown(tes, consumer, cf), "shutdown-handler");
@@ -112,13 +120,21 @@ public class App {
         shutdown(tes, consumer, cf);
     }
 
+    private static void runModule(final Namespace ns) throws InterruptedException {
+        final Injector injector = Guice.createInjector(new KafkaTaskModule(ns));
+        final TaskExecutorService tes = injector.getInstance(TaskExecutorService.class);
+        final StringConsumer consumer = injector.getInstance(StringConsumer.class);
+        run(ns, consumer, tes);
+    }
+
     public static void main(String[] args) throws Exception {
         final Namespace ns = parseArgs(args);
 
         if (ns.getString("task") != null) {
             execTask(ns);
         } else {
-            runDaemon(ns);
+            // runDaemon(ns);
+            runModule(ns);
         }
     }
 

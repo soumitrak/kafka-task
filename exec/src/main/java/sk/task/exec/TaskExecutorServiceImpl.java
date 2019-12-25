@@ -1,12 +1,13 @@
 package sk.task.exec;
 
+import com.google.inject.Inject;
+import com.google.inject.Singleton;
+import com.google.inject.name.Named;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import sk.task.msg.Input;
 import sk.task.msg.Output;
 
-import javax.inject.Inject;
-import javax.inject.Singleton;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CountDownLatch;
@@ -17,7 +18,6 @@ import java.util.concurrent.FutureTask;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-
 
 @Singleton
 public class TaskExecutorServiceImpl implements TaskExecutorService {
@@ -39,7 +39,7 @@ public class TaskExecutorServiceImpl implements TaskExecutorService {
     @Inject
     public TaskExecutorServiceImpl(
             final TaskLocator taskLocator,
-            final int nThreads) {
+            @Named("NUM_THREADS") final int nThreads) {
         this.taskLocator = taskLocator;
 
         poolQueue = new LinkedBlockingQueue<Runnable>();
@@ -56,7 +56,7 @@ public class TaskExecutorServiceImpl implements TaskExecutorService {
         completionService = new ExecutorCompletionService<Output>(this.service);
 
         monitorTask = new FutureTask<Void>(new TaskMonitor(1000), null);
-        Thread t = new Thread(monitorTask);
+        Thread t = new Thread(monitorTask, "task-monitor");
         t.setDaemon(true);
         t.start();
     }

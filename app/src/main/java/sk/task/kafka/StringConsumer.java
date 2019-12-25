@@ -2,6 +2,9 @@ package sk.task.kafka;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.inject.Inject;
+import com.google.inject.Singleton;
+import com.google.inject.name.Named;
 import net.sourceforge.argparse4j.inf.Namespace;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRebalanceListener;
@@ -29,9 +32,6 @@ import java.util.stream.StreamSupport;
 import sk.task.exec.TaskExecutorService;
 import sk.task.msg.Input;
 
-import javax.inject.Inject;
-import javax.inject.Singleton;
-
 @Singleton
 public class StringConsumer implements Callable<Long> {
 
@@ -55,7 +55,8 @@ public class StringConsumer implements Callable<Long> {
     private final AtomicBoolean closed = new AtomicBoolean(false);
 
     @Inject
-    public StringConsumer(final TaskExecutorService tes, final Namespace ns) {
+    public StringConsumer(final TaskExecutorService tes,
+                          @Named("NS") final Namespace ns) {
         mapper = new ObjectMapper();
         this.tes = tes;
         pollTimeout = Duration.ofMillis(ns.getInt("poll.timeout.ms"));
@@ -211,7 +212,7 @@ public class StringConsumer implements Callable<Long> {
         } finally {
             if (closed.get() && !wakeupCaught) {
                 try {
-                    // Poll once to absorb WakeupException, else commitOffsets fails.
+                    // Poll once to absorb WakeupException, else commitOffsets will fail.
                     consumer.poll(pollTimeout);
                 } catch (WakeupException e) {
                     logger.debug("Received expected WakeupException", e);
