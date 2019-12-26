@@ -4,7 +4,7 @@
 
 15:49:01.398 [consumer-thread] WARN  o.a.k.c.c.i.ConsumerCoordinator - [Consumer clientId=consumer-1, groupId=task1] Synchronous auto-commit of offsets {test-1=OffsetAndMetadata{offset=5000, leaderEpoch=0, metadata=''}, test-0=OffsetAndMetadata{offset=2700, leaderEpoch=0, metadata=''}, test-3=OffsetAndMetadata{offset=2700, leaderEpoch=0, metadata=''}, test-2=OffsetAndMetadata{offset=2800, leaderEpoch=0, metadata=''}} failed: Commit cannot be completed since the group has already rebalanced and assigned the partitions to another member. This means that the time between subsequent calls to poll() was longer than the configured max.poll.interval.ms, which typically implies that the poll loop is spending too much time message processing. You can address this either by increasing max.poll.interval.ms or by reducing the maximum size of batches returned in poll() with max.poll.records.
 
-## When you use https://kafka.apache.org/24/javadoc/index.html?org/apache/kafka/clients/consumer/KafkaConsumer.html API to subscribe to a Kafka topic, two things happens on the consumer side:
+## When you use https://kafka.apache.org/24/javadoc/index.html?org/apache/kafka/clients/consumer/KafkaConsumer.html API to subscribe to a Kafka topic, two things happen on the consumer side:
 
 1. There is a thread created which keep sending (every heartbeat.interval.ms) heartbeat to coordinator. If the heartbeat is not received by the coordinator, then Kafka thinks that the consumer process or host died, and it removes this process from the consumer group and starts rebalancing of partitions to available consumers within the consumer group. heartbeat.interval.ms value is small to ensure that if process or host dies, Kafka can detect it fast and assigns the partitions to other members of the same consumer group.
 
@@ -13,11 +13,11 @@
 If you have different kinds of messages in a topic and the processing time of messages vary depending on its type, then it is tricky to configure max.poll.interval.ms. If you set max.poll.interval.ms to worst case time interval, then rebalancing will take longer time, which is not ideal.
 
 ### Here is one way to solve the issue:
-while true:
-    records = consumer.poll()
-    submit records to process in a different thread pool
-    consumer.pause
-    if thread pool is ready for more messages, consumer.resume
+    while true:
+        records = consumer.poll()
+        submit records to process in a different thread pool
+        consumer.pause
+        if thread pool is ready for more messages, consumer.resume
 
 If consumer has paused itself, then poll method does not fetch any message, and it tells Kafka that the consumer is alive. This way there is no need to set max.poll.interval.ms to a very large value (and pay for greater rebalancing time), since consumer.poll() will be called within the expected time interval. Look at https://github.com/soumitrak/kafka-task/blob/master/app/src/main/java/sk/task/kafka/StringConsumer.java for the implementation.
 
